@@ -1,6 +1,7 @@
 #include<stdlib.h>
 #include<tchar.h>
 #include<Windows.h>
+#include<AclAPI.h>
 #include<iostream>
 
 using namespace std;
@@ -21,6 +22,14 @@ int CopySingleFile(char *oldfile, char *newfile) {
 		FILE_ATTRIBUTE_NORMAL,
 		hfile
 	);
+	
+	PSECURITY_DESCRIPTOR psd;
+	PSID powner, pgroup;
+	PACL psacl, pdacl;
+	DWORD MASK = OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
+
+	GetSecurityInfo(hfile, SE_FILE_OBJECT, MASK, &powner,&pgroup,&pdacl,&psacl, &psd);
+	SetSecurityInfo(hnewfile, SE_FILE_OBJECT, MASK, powner, pgroup, pdacl, psacl);
 
 	char buffer[MAX_PATH];
 	DWORD dwread(0);
@@ -46,10 +55,35 @@ int CopySingleFile(char *oldfile, char *newfile) {
 	return 0;
 }
 
+void modify_dir_date(char *oldfile, char *newfile) {
+	HANDLE hfile = CreateFile(
+		oldfile, GENERIC_READ|GENERIC_WRITE,
+		NULL, NULL,
+		OPEN_ALWAYS,
+		FILE_FLAG_BACKUP_SEMANTICS,
+		NULL
+	);
+
+	HANDLE hnewfile = CreateFile(
+		newfile, GENERIC_READ|GENERIC_WRITE,
+		NULL, NULL,
+		OPEN_ALWAYS,
+		FILE_FLAG_BACKUP_SEMANTICS,
+		NULL
+	);
+	FILETIME ftCreate, ftAccess, ftWrite;
+	GetFileTime(hfile, &ftCreate, &ftAccess, &ftWrite);
+	SetFileTime(hnewfile, &ftCreate, &ftAccess, &ftWrite);
+
+	CloseHandle(hfile);
+	CloseHandle(hnewfile);
+}
+
 int CopyDir(char *oldpath, char *newpath) {
+	CreateDirectoryEx(oldpath,newpath,NULL);
+
 	SetCurrentDirectory(oldpath);
-	CreateDirectory(newpath, NULL);
-	
+
 	WIN32_FIND_DATA finddata;
 	HANDLE hfile= FindFirstFile(_TEXT("*.*"), &finddata);
 	bool fOk = (hfile != INVALID_HANDLE_VALUE);
@@ -77,6 +111,7 @@ int CopyDir(char *oldpath, char *newpath) {
 
 	SetCurrentDirectory("..\\");
 	FindClose(hfile);
+	modify_dir_date(oldpath, newpath);
 	return 0;
 }
 
@@ -94,6 +129,7 @@ int main(int argc, char **argv) {
 	SetCurrentDirectory(argv[2]);
 	GetCurrentDirectory(sizeof(szNewDir) / sizeof(TCHAR), szNewDir);
 
+	SetCurrentDirectory("D:\\");
 	CopyDir(szOldDir, szNewDir);
 
 	return 0;

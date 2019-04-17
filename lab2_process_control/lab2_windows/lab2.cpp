@@ -82,7 +82,7 @@ HANDLE fork(char* filename, char* arg = NULL) {
 		NULL,
 		cmd,
 		NULL, NULL, FALSE,
-		CREATE_NEW_CONSOLE,
+		NULL,
 		NULL, NULL,
 		&si,
 		&pi
@@ -93,17 +93,26 @@ HANDLE fork(char* filename, char* arg = NULL) {
 		//CloseHandle(pi.hProcess);
 		CloseHandle(pi.hThread);
 	}
+	else {
+		printf("create process failed\n");
+		return INVALID_HANDLE_VALUE;
+	}
 	return pi.hProcess;
 }
 
 int main(int argv, char **argc) {
 	HANDLE hChild = NULL;
-	if (argv == 1)
+	if (argv == 1) {
 		cout << "error" << endl << "mytime.exe [program] <time>";
+		return 0;
+	}
 	else if (argv == 2)
 		hChild = fork(argc[1]);	//child process without arg
 	else
 		hChild = fork(argc[1], argc[2]);	//child process with arg
+
+	if (hChild == INVALID_HANDLE_VALUE)
+		return 0;
 		
 	LPSYSTEMTIME start, end;
 	start = (LPSYSTEMTIME)malloc(sizeof(start));
@@ -116,8 +125,9 @@ int main(int argv, char **argc) {
 	GetSystemTime(end);
 
 	//print time
-	//time_span(*start, *end);
+	time_span(*start, *end);
 
 	return 0;
+
 }
 

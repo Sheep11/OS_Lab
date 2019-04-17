@@ -16,6 +16,19 @@ struct buffer_t {
 	int buffer[3];
 };
 
+void show_time() {
+	time_t now;
+	time(&now);
+	printf("%s", asctime(gmtime(&now)));
+}
+
+void show_buffer(buffer_t *pbuffer) {
+	printf("now buffer: ");
+	for (int i = 0; i < pbuffer->cursor; i++)
+		printf("%d ", pbuffer->buffer[i]);
+	printf("\n\n");
+}
+
 void Producer() {
 	//open handles
 	HANDLE hmutex = OpenMutex(FILE_MAP_ALL_ACCESS, FALSE, MUTEX_NAME);
@@ -38,7 +51,10 @@ void Producer() {
 		int cursor = pbuffer->cursor;
 		pbuffer->cursor++;
 		pbuffer->buffer[cursor] = rand()%100;
+
+		show_time();
 		printf("producer(%d), put %d at %d\n", pid, pbuffer->buffer[cursor], cursor);
+		show_buffer(pbuffer);
 
 		ReleaseMutex(hmutex);
 		ReleaseSemaphore(hfull, 1, NULL);
@@ -71,7 +87,10 @@ void Consumer() {
 
 		int cursor = pbuffer->cursor;
 		pbuffer->cursor--;
+
+		show_time();
 		printf("consumer(%d), get %d at %d\n", pid, pbuffer->buffer[cursor - 1], cursor - 1);
+		show_buffer(pbuffer);
 
 		ReleaseMutex(hmutex);
 		ReleaseSemaphore(hempty, 1, NULL);
@@ -163,12 +182,16 @@ int main(int argv, char **argc) {
 		}
 	}
 
+	//close all handles
 	WaitForMultipleObjects(handle_count, handles, TRUE, INFINITE);
+	for(int i=0;i<handle_count;i++)
+		CloseHandle(handles[i]);
 
 	CloseHandle(hMutex);
 	CloseHandle(hFull);
 	CloseHandle(hEmpty);
 	CloseHandle(hMap);
 
+	system("pause");
 	return 0;
 }

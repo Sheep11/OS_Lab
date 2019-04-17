@@ -65,9 +65,10 @@ void PrintMemoryInfo() {
 	ZeroMemory(&mbi, sizeof(mbi));
 	while (pBlock < si.lpMaximumApplicationAddress) {
 		if (VirtualQueryEx(hprocess, pBlock, &mbi, sizeof(mbi)) == sizeof(mbi)) {
-			LPCVOID pEnd = (PBYTE)pBlock + mbi.RegionSize;
+			LPCVOID pEnd = (PBYTE)pBlock + mbi.RegionSize - 1;
 			TCHAR szSize[MAX_PATH];
 			StrFormatByteSize(mbi.RegionSize, szSize, MAX_PATH);
+			
 
 			cout.fill('0');
 			cout << hex << setw(8) << (DWORD)pBlock
@@ -115,7 +116,7 @@ void PrintMemoryInfo() {
 			}
 			printf("\n");
 
-			pBlock = pEnd;
+			pBlock = PBYTE(pEnd) + 1;
 		}
 	}
 

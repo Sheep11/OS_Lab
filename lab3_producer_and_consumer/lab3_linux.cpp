@@ -14,7 +14,7 @@
 #define SEM_EMPTY 3
 #define SHM_KEY 76
 #define PRODUCER_NUM 2
-#define CUSTOMER_NUM 4
+#define CONSUMER_NUM 4
 
 union semun {
     int val;
@@ -23,10 +23,10 @@ union semun {
 };
 
 //shared memory struct
-struct buffer_t {
+typedef struct {
     int cursor;
     int buffer[3];
-};
+}buffer_t;
 
 int P(int semid)
 {
@@ -48,7 +48,22 @@ int V(int semid)
     return semop(semid, &op, 1);
 }
 
+void show_buffer(buffer_t *pbuffer){
+    printf("now buffer: ");
+    for(int i=0;i<pbuffer->cursor;i++)
+        printf("%d ",pbuffer->buffer[i]);
+    printf("\n\n");
+}
+
+void show_time(){
+    time_t now;
+    time(&now);
+    printf("%s",asctime(gmtime(&now)));
+}
+
 //create a sem with value
+//key: key of semaphore set
+//value: value of semaphore
 int init_sem(int key, int value)
 {
     int semid = semget(key, 1, IPC_CREAT | 0600);
@@ -63,6 +78,7 @@ int init_sem(int key, int value)
 
 int main()
 {
+    //create semaphore and init
     int mutex = init_sem(SEM_MUTEX, 1);
     int full = init_sem(SEM_FULL, 0);
     int empty = init_sem(SEM_EMPTY, 3);
@@ -70,6 +86,7 @@ int main()
     int shmid = shmget(SHM_KEY, 16, 0777 | IPC_CREAT);
     printf("shmid:%d\n", shmid);
 
+    //create shared memory and init buffer
     buffer_t *pbuffer = (buffer_t *)shmat(shmid, 0, 0);
     memset(pbuffer,0,sizeof(buffer_t));
     shmdt(pbuffer);
@@ -94,7 +111,10 @@ int main()
                 int cursor= pbuffer->cursor;
                 pbuffer->cursor++;
                 pbuffer->buffer[cursor]=rand()%100;
-                printf("producer(%d), put %d at %d\n", i, pbuffer->buffer[cursor], cursor);
+
+                show_time();
+                printf(": producer(%d), put %d at %d---", i, pbuffer->buffer[cursor], cursor);
+                show_buffer(pbuffer);
 
                 V(mutex);
                 V(full);
@@ -103,10 +123,10 @@ int main()
             exit(0);
         }
 
-    //create CUSTOMER_NUM(4) consumer
-    for (int i = 0; i < CUSTOMER_NUM; i++)
+    //create CUNSUMER_NUM(4) consumer
+    for (int i = 0; i < CONSUMER_NUM; i++)
         if (fork() == 0)
-        { //customer
+        { //consumer
             printf("pid:%d, consumer:%d \n", getpid(), i);
 
             //get shared memory
@@ -122,7 +142,10 @@ int main()
 
                 int cursor= pbuffer->cursor-1;
                 pbuffer->cursor--;
-                printf("customer(%d), get %d at %d\n", i, pbuffer->buffer[cursor], cursor);
+
+                show_time();
+                printf(":consumer(%d), get %d at %d---", i, pbuffer->buffer[cursor], cursor);
+                show_buffer(pbuffer);
 
                 V(mutex);
                 V(empty);
